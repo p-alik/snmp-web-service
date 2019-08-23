@@ -1,4 +1,5 @@
 resolver: lts-13.26
+allow-newer: true
 
 packages:
 - .
