@@ -1,0 +1,9 @@
+resolver: lts-13.26
+
+packages:
+- .
+
+extra-deps:
+- language-asn-0.1.1.0@sha256:966e3cf5ae7bd1c69c87c9096e139088b0c8a7d40e393f3cd3a7b0ff1cd10e40,1068
+- snmp-0.3.1.0@sha256:a13a3588394395f885147886740e1f269118dbb06c3d4688febc4f2f0d525aa2,1027
+- network-3.1.0.1

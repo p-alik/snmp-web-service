@@ -1,0 +1,4 @@
+.stack-work/
+snmp-web-service.cabal
+*~stack.yaml.lock
+stack.yaml.lock
