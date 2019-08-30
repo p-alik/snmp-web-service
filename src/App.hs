@@ -13,46 +13,37 @@ import qualified App.Snmp                   (snmpGet)
 import qualified Data.ByteString.Lazy.Char8 as B (pack)
 
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
+import           Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import           Network.Wai.Handler.Warp   (run)
 import           Servant                    (Application, Handler, Proxy (..),
-                                             Server, serve, throwError)
+                                             ServerT, serve, throwError)
 import           Servant.API                ((:>), Capture, Get, JSON)
-import           Servant.Server
+import           Servant.Server             (ServantErr (errBody), err404,
+                                             hoistServer)
 
 type SnmpAPI = "snmpget"  :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
+
+type AppM = ReaderT Options Handler
 
 snmpAPI :: Proxy SnmpAPI
 snmpAPI = Proxy
 
-snmpAPIServer :: Options -> Server SnmpAPI
+snmpAPIServer :: ServerT SnmpAPI AppM
 snmpAPIServer = snmpGet
 
-snmpGet :: Options -> IPv4T -> ObjectIdentifierT -> Handler SnmpResponseT
-snmpGet o (IPv4T ip) (ObjectIdentifierT oid) = do
+snmpGet :: IPv4T -> ObjectIdentifierT -> AppM SnmpResponseT
+snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
+  o <- ask
   v <- liftIO $ App.Snmp.snmpGet (roCommunity o) oid ip
   case v of
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
 
+nt :: Options -> AppM a -> Handler a
+nt s x = runReaderT x s
+
 app :: Options -> Application
-app o = serve snmpAPI (snmpAPIServer o)
+app o = serve snmpAPI (hoistServer snmpAPI (nt o) snmpAPIServer)
 
 runApp :: MonadIO m => Options -> m ()
 runApp o = liftIO (run 8081 (app o))
-
--- newtype App m a = App {
---     unApp :: ReaderT Options m a
---     } deriving (Applicative, Functor, Monad, MonadReader Options, MonadIO)
---
--- runApp :: MonadIO m => ObjectIdentifier -> IPv4 -> Options -> m ()
--- runApp oid ip = runReaderT (unApp (app oid ip))
---
--- app :: (MonadIO m) => ObjectIdentifier -> IPv4 -> App m ()
--- app oid ip = do
---   com <- asks roCommunity
---   liftIO (App.Snmp.snmpGetBulk com oid ip 100000000 >>= \v -> printR v)
---   pure ()
---  where
---   printR v = case v of
---     Left  e -> print (show e)
---     Right r -> print (Data.Aeson.encode r)
