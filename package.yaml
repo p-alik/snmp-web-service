@@ -26,14 +26,15 @@ dependencies:
 - bytestring
 - ip
 - language-asn
-- optparse-applicative
 - mtl
-- text
+- optparse-applicative
 - servant
 - servant-server
 - snmp
-- warp
+- text
+- transformers
 - vector
+- warp
 
 library:
   source-dirs: src
