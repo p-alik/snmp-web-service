@@ -5,21 +5,33 @@ module App
   )
 where
 
-import           App.Parser                 (IPv4T (..), ObjectIdentifierT (..))
-import           App.Settings               (Options (..))
-import           App.Snmp                   (SnmpResponseT)
-import qualified App.Snmp                   (snmpGet)
+import           App.Parser                                (IPv4T (..), ObjectIdentifierT (..))
+import           App.Settings                              (Options (..))
+import           App.Snmp                                  (SnmpResponseT)
+import qualified App.Snmp                                  (snmpGet)
 
-import qualified Data.ByteString.Lazy.Char8 as B (pack)
+import qualified Data.ByteString.Lazy.Char8                as B (pack)
+import           Data.Default                              (def)
 
-import           Control.Monad.IO.Class     (MonadIO, liftIO)
-import           Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
-import           Network.Wai.Handler.Warp   (run)
-import           Servant                    (Application, Handler, Proxy (..),
-                                             ServerT, serve, throwError)
-import           Servant.API                ((:>), Capture, Get, JSON)
-import           Servant.Server             (ServantErr (errBody), err404,
-                                             hoistServer)
+import           Control.Monad.IO.Class                    (MonadIO, liftIO)
+import           Control.Monad.Trans.Reader                (ReaderT, ask,
+                                                            runReaderT)
+import           Network.Wai                               (Middleware)
+import           Network.Wai.Handler.Warp                  (defaultSettings,
+                                                            runSettings,
+                                                            setPort)
+import           Network.Wai.Middleware.RequestLogger      (OutputFormat (..),
+                                                            mkRequestLogger,
+                                                            outputFormat)
+import           Network.Wai.Middleware.RequestLogger.JSON (formatAsJSON)
+import           Servant                                   (Application,
+                                                            Handler, Proxy (..),
+                                                            ServerT, serve,
+                                                            throwError)
+import           Servant.API                               ((:>), Capture, Get,
+                                                            JSON)
+import           Servant.Server                            (ServantErr (errBody),
+                                                            err404, hoistServer)
 
 type SnmpAPI = "snmpget"  :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
 
@@ -46,4 +58,12 @@ app :: Options -> Application
 app o = serve snmpAPI (hoistServer snmpAPI (nt o) snmpAPIServer)
 
 runApp :: MonadIO m => Options -> m ()
-runApp o = liftIO (run 8081 (app o))
+runApp o = do
+  l <- liftIO jsonRequestLogger
+  let set = setPort 8081 defaultSettings
+  -- liftIO (run 8081 (app o))
+  liftIO (runSettings set $ l $ (app o))
+
+jsonRequestLogger :: IO Middleware
+jsonRequestLogger =
+  mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON }
