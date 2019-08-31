@@ -24,6 +24,7 @@ dependencies:
 - aeson
 - attoparsec
 - bytestring
+- data-default
 - ip
 - language-asn
 - mtl
@@ -34,6 +35,8 @@ dependencies:
 - text
 - transformers
 - vector
+- wai
+- wai-extra
 - warp
 
 library:
