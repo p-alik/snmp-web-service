@@ -1,13 +1,12 @@
-{-# LANGUAGE DataKinds     #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 module App
   ( runApp
   )
 where
 
-import           App.Parser                                (IPv4T (..), ObjectIdentifierT (..))
+import           App.Api
 import           App.Settings                              (Options (..))
-import           App.Snmp                                  (SnmpResponseT)
+import           App.Snmp                                  (SnmpResponseT (..))
 import qualified App.Snmp                                  (snmpGet)
 
 import qualified Data.ByteString.Lazy.Char8                as B (pack)
@@ -16,7 +15,9 @@ import           Data.Default                              (def)
 import           Control.Monad.IO.Class                    (MonadIO, liftIO)
 import           Control.Monad.Trans.Reader                (ReaderT, ask,
                                                             runReaderT)
-import           Network.Wai                               (Middleware)
+import           Network.HTTP.Types                        (ok200)
+import           Network.Wai                               (Middleware, Response, 
+                                                            responseLBS)
 import           Network.Wai.Handler.Warp                  (defaultSettings,
                                                             runSettings,
                                                             setPort)
@@ -25,23 +26,23 @@ import           Network.Wai.Middleware.RequestLogger      (OutputFormat (..),
                                                             outputFormat)
 import           Network.Wai.Middleware.RequestLogger.JSON (formatAsJSON)
 import           Servant                                   (Application,
-                                                            Handler, Proxy (..),
-                                                            ServerT, serve,
-                                                            throwError)
-import           Servant.API                               ((:>), Capture, Get,
-                                                            JSON)
+                                                            Handler, ServerT,
+                                                            serve, throwError)
+import           Servant.API                               ((:<|>))
+import Servant.Client ()
 import           Servant.Server                            (ServantErr (errBody),
-                                                            err404, hoistServer)
-
-type SnmpAPI = "snmpget"  :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
+                                                            Tagged (..), err404,
+                                                            hoistServer)
 
 type AppM = ReaderT Options Handler
 
-snmpAPI :: Proxy SnmpAPI
-snmpAPI = Proxy
-
 snmpAPIServer :: ServerT SnmpAPI AppM
 snmpAPIServer = snmpGet
+
+serveDocs :: p -> (Response -> t) -> AppM t
+serveDocs _ respond = pure $ respond $ responseLBS ok200 [plain] apiDocsBS
+  where
+  plain = ("Content-Type",  "text/plain")
 
 snmpGet :: IPv4T -> ObjectIdentifierT -> AppM SnmpResponseT
 snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
@@ -61,7 +62,6 @@ runApp :: MonadIO m => Options -> m ()
 runApp o = do
   l <- liftIO jsonRequestLogger
   let set = setPort 8081 defaultSettings
-  -- liftIO (run 8081 (app o))
   liftIO (runSettings set $ l $ (app o))
 
 jsonRequestLogger :: IO Middleware

@@ -1,50 +1,39 @@
 module App.Snmp
-  ( SnmpResponseT
+  ( SnmpResponseT(..)
   , snmpGet
   , snmpGetBulk
   , vectorToValue
   )
 where
 
-import           Control.Exception                        ( bracket )
-import           Data.Aeson                               ( ToJSON(..)
-                                                          , Value(..)
-                                                          , object
-                                                          , (.=)
-                                                          )
-import           Data.Bool                                ( bool )
-import           Data.ByteString                          ( ByteString )
-import           Data.ByteString.Builder                  ( byteStringHex
-                                                          , toLazyByteString
-                                                          )
-import           Data.ByteString.Lazy                     ( toStrict )
-import qualified Data.ByteString.Char8                    ( all )
-import           Data.Char                                ( isPrint )
-import           Data.Text                                ( Text )
-import qualified Data.Text                                ( pack )
-import qualified Data.Text.Encoding                       ( decodeUtf8 )
-import           Data.Vector                              ( Vector )
-import qualified Data.Vector                              ( toList )
-import           Language.Asn.ObjectIdentifier            ( encodeText )
-import           Language.Asn.Types                       ( ObjectIdentifier(..)
-                                                          )
-import           Net.IPv4                                 ( IPv4(..) )
-import qualified Net.IPv4                                 ( encode )
-import           Snmp.Client                              ( Config(..)
-                                                          , Context(..)
-                                                          , Credentials(..)
-                                                          , CredentialsV2(..)
-                                                          , Destination(..)
-                                                          , Session(..)
-                                                          , SnmpException
-                                                          , closeSession
-                                                          , getBulkStep'
-                                                          , openSession
-                                                          )
-import           Snmp.Types                               ( ApplicationSyntax(..)
-                                                          , ObjectSyntax(..)
-                                                          , SimpleSyntax(..)
-                                                          )
+import           Control.Exception             (bracket)
+import           Data.Aeson                    (ToJSON (..), Value (..), object,
+                                                (.=))
+import           Data.Bool                     (bool)
+import           Data.ByteString               (ByteString)
+import           Data.ByteString.Builder       (byteStringHex, toLazyByteString)
+import qualified Data.ByteString.Char8         (all, pack)
+import           Data.ByteString.Lazy          (toStrict)
+import           Data.Char                     (isPrint)
+import           Data.Text                     (Text)
+import qualified Data.Text                     (pack)
+import qualified Data.Text.Encoding            (decodeUtf8)
+import           Data.Vector                   (Vector)
+import qualified Data.Vector                   (fromList, toList)
+import qualified Language.Asn.ObjectIdentifier as Asn (encodeText, fromList)
+import           Language.Asn.Types            (ObjectIdentifier (..))
+import           Net.IPv4                      (IPv4 (..))
+import qualified Net.IPv4                      (encode)
+import           Servant.Docs                  (ToSample (..), singleSample)
+import           Snmp.Client                   (Config (..), Context (..),
+                                                Credentials (..),
+                                                CredentialsV2 (..),
+                                                Destination (..), Session (..),
+                                                SnmpException, closeSession,
+                                                getBulkStep', openSession)
+import           Snmp.Types                    (ApplicationSyntax (..),
+                                                ObjectSyntax (..),
+                                                SimpleSyntax (..))
 
 type CommunityString = ByteString
 
@@ -128,7 +117,7 @@ stringifyApplicationSyntax (ApplicationSyntaxIpAddress o) =
 stringifyApplicationSyntax o = Data.Text.pack (show o)
 
 stringfyObjectIdentifier :: ObjectIdentifier -> Text
-stringfyObjectIdentifier = encodeText
+stringfyObjectIdentifier = Asn.encodeText
 
 vectorToValue :: Vector (ObjectIdentifier, ObjectSyntax) -> [Value]
 vectorToValue v = stringifyTuple <$> Data.Vector.toList v
@@ -143,5 +132,15 @@ newtype SnmpResponseT = SnmpResponseT SnmpResponse deriving (Show)
 instance ToJSON SnmpResponseT where
   toJSON a = object [Data.Text.pack "SnmpResponseT" .= vectorToValue (snmpResponse a)]
 
+instance ToSample SnmpResponseT where
+  toSamples _ = singleSample (snmpResponseSample)
+
+snmpResponseSample :: SnmpResponseT
+snmpResponseSample = SnmpResponseT $ Data.Vector.fromList [(k, v)]
+  where
+    k = Asn.fromList [1, 3,6,1,2,1]
+    v = ObjectSyntaxSimple $ SimpleSyntaxString $ Data.ByteString.Char8.pack "cm-firmware/compal/CH7467CE-6,12,0,2-NOSH-EL-p7"
+
 snmpResponse :: SnmpResponseT -> SnmpResponse
 snmpResponse (SnmpResponseT a) = a
+

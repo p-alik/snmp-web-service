@@ -25,11 +25,14 @@ dependencies:
 - attoparsec
 - bytestring
 - data-default
+- http-types
 - ip
 - language-asn
 - mtl
 - optparse-applicative
 - servant
+- servant-client
+- servant-docs
 - servant-server
 - snmp
 - text
