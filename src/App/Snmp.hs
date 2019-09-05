@@ -138,9 +138,8 @@ instance ToSample SnmpResponseT where
 snmpResponseSample :: SnmpResponseT
 snmpResponseSample = SnmpResponseT $ Data.Vector.fromList [(k, v)]
   where
-    k = Asn.fromList [1, 3,6,1,2,1]
-    v = ObjectSyntaxSimple $ SimpleSyntaxString $ Data.ByteString.Char8.pack "cm-firmware/compal/CH7467CE-6,12,0,2-NOSH-EL-p7"
-
+    k = Asn.fromList [1, 3, 6, 1, 2, 1, 1, 1]
+    v = ObjectSyntaxSimple $ SimpleSyntaxString $ Data.ByteString.Char8.pack "<<HW_REV: V1.0; VENDOR: ..."
 snmpResponse :: SnmpResponseT -> SnmpResponse
 snmpResponse (SnmpResponseT a) = a
 

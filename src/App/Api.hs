@@ -1,23 +1,33 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators     #-}
-module App.Api where
+module App.Api (
+    IPv4T(..)
+  , ObjectIdentifierT(..)
+  , SnmpAPI
+  , SnmpWithDocsAPI
+  , docsApiBS
+  , snmpAPI
+  , snmpWithDocsAPI
+  ) where
 
-import           App.Parser         (parseIPv4, parseOID)
-import           App.Snmp           (SnmpResponseT (..))
+import           App.Parser              (parseIPv4, parseOID)
+import           App.Snmp                (SnmpResponseT (..))
 
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.Text          (pack)
-import Data.Text.Lazy.Encoding (encodeUtf8)
-import qualified Data.Text.Lazy (pack)
-import           Language.Asn.Types (ObjectIdentifier (..))
-import           Net.IPv4           (IPv4)
-import           Servant            (Proxy (..))
+import           Data.ByteString.Lazy    (ByteString)
+import qualified Data.Text               (pack)
+import qualified Data.Text.Lazy          (pack)
+import           Data.Text.Lazy.Encoding (encodeUtf8)
+import           Language.Asn.Types      (ObjectIdentifier (..))
+import           Net.IPv4                (IPv4)
+import           Servant                 (Proxy (..))
+import           Servant.API             ((:<|>), (:>), Capture,
+                                          FromHttpApiData (..), Get, JSON, Raw)
 import           Servant.Docs
-import           Servant.API        ((:>), Capture, FromHttpApiData (..), Get,
-                                     JSON)
 
 type SnmpAPI = "snmpget"  :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
+
+type SnmpWithDocsAPI = SnmpAPI :<|> Raw
 
 newtype ObjectIdentifierT = ObjectIdentifierT ObjectIdentifier
 instance FromHttpApiData ObjectIdentifierT where
@@ -30,6 +40,9 @@ instance FromHttpApiData IPv4T where
 snmpAPI :: Proxy SnmpAPI
 snmpAPI = Proxy
 
+snmpWithDocsAPI :: Proxy SnmpWithDocsAPI
+snmpWithDocsAPI = Proxy
+
 instance ToCapture (Capture "ip" IPv4T) where
   toCapture _ =
     DocCapture "ip"
@@ -40,11 +53,8 @@ instance ToCapture (Capture "oid" ObjectIdentifierT) where
     DocCapture "oid"
                "SNMP Object Identifier to be requested"
 
-apiDocs :: API
-apiDocs = docs snmpAPI
-
-apiDocsBS :: ByteString
-apiDocsBS = encodeUtf8
+docsApiBS :: ByteString
+docsApiBS = encodeUtf8
        . Data.Text.Lazy.pack
        . markdown
        $ docsWithIntros [intro] snmpAPI

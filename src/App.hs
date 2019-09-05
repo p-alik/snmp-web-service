@@ -16,7 +16,8 @@ import           Control.Monad.IO.Class                    (MonadIO, liftIO)
 import           Control.Monad.Trans.Reader                (ReaderT, ask,
                                                             runReaderT)
 import           Network.HTTP.Types                        (ok200)
-import           Network.Wai                               (Middleware, Response, 
+import           Network.Wai                               (Middleware,
+                                                            Response,
                                                             responseLBS)
 import           Network.Wai.Handler.Warp                  (defaultSettings,
                                                             runSettings,
@@ -28,21 +29,23 @@ import           Network.Wai.Middleware.RequestLogger.JSON (formatAsJSON)
 import           Servant                                   (Application,
                                                             Handler, ServerT,
                                                             serve, throwError)
-import           Servant.API                               ((:<|>))
-import Servant.Client ()
+import           Servant.API
 import           Servant.Server                            (ServantErr (errBody),
                                                             Tagged (..), err404,
                                                             hoistServer)
 
 type AppM = ReaderT Options Handler
 
-snmpAPIServer :: ServerT SnmpAPI AppM
-snmpAPIServer = snmpGet
+serverSnmp :: ServerT SnmpAPI AppM
+serverSnmp = snmpGet
 
-serveDocs :: p -> (Response -> t) -> AppM t
-serveDocs _ respond = pure $ respond $ responseLBS ok200 [plain] apiDocsBS
+serverSnmpWithDocsAPI :: ServerT SnmpWithDocsAPI AppM
+serverSnmpWithDocsAPI = serverSnmp :<|> Tagged serveDocs
   where
-  plain = ("Content-Type",  "text/plain")
+    serveDocs :: p -> (Response -> t) -> t
+    serveDocs _ respond = respond $ responseLBS ok200 [plain] docsApiBS
+      where
+      plain = ("Content-Type",  "text/plain")
 
 snmpGet :: IPv4T -> ObjectIdentifierT -> AppM SnmpResponseT
 snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
@@ -52,11 +55,11 @@ snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
 
-nt :: Options -> AppM a -> Handler a
-nt s x = runReaderT x s
-
 app :: Options -> Application
-app o = serve snmpAPI (hoistServer snmpAPI (nt o) snmpAPIServer)
+app o = serve snmpWithDocsAPI $ hoistServer snmpWithDocsAPI nt serverSnmpWithDocsAPI
+  where
+    nt :: AppM a -> Handler a
+    nt x = runReaderT x o
 
 runApp :: MonadIO m => Options -> m ()
 runApp o = do
