@@ -1,8 +1,7 @@
 module App.Snmp
   ( SnmpResponseT(..)
   , snmpGet
-  , snmpGetBulk
-  , vectorToValue
+  , snmpGetBulkStep
   )
 where
 
@@ -43,35 +42,26 @@ snmpGet
   -> ObjectIdentifier
   -> IPv4
   -> IO (Either SnmpException SnmpResponseT)
-snmpGet cnf com oid ip = bracket (openSession cnf) closeSession
-  $ \s -> do
-  v <- (get' (context s com (destination ip)) oid)
-  return $ either (\l -> Left l) (\r -> Right $ SnmpResponseT $ Data.Vector.fromList [(oid, r)]) v
+snmpGet cnf com oid ip =
+  withSession cnf
+    (context com (destination ip))
+    $ \cnx -> do
+    v <- get' cnx oid
+    return $ either (\l -> Left l) (\r -> Right $ SnmpResponseT $ Data.Vector.fromList [(oid, r)]) v
 
-snmpGetBulk'
-  :: Config
-  -> CommunityString
-  -> ObjectIdentifier
-  -> IPv4
-  -> Int
-  -> IO
-       ( Either
-           SnmpException
-           (Vector (ObjectIdentifier, ObjectSyntax))
-       )
-snmpGetBulk' cnf com oid ip i = bracket (openSession cnf) closeSession
-  $ \s -> getBulkStep' (context s com (destination ip)) i oid
-
-snmpGetBulk
+snmpGetBulkStep
   :: Config
   -> CommunityString
   -> ObjectIdentifier
   -> IPv4
   -> Int
   -> IO (Either SnmpException SnmpResponseT)
-snmpGetBulk cnf com oid ip i = do
-  v <- snmpGetBulk' cnf com oid ip i
-  return (eitherSnmpResponse v)
+snmpGetBulkStep cnf com oid ip i = do
+  withSession cnf
+    (context com (destination ip))
+    $ \cnx -> do
+    v <- getBulkStep' cnx i oid
+    return (eitherSnmpResponse v)
 
 eitherSnmpResponse
   :: Either SnmpException (Vector (ObjectIdentifier, ObjectSyntax))
@@ -80,12 +70,20 @@ eitherSnmpResponse v = case v of
   Left  e  -> Left e
   Right v' -> Right (SnmpResponseT v')
 
+withSession
+  :: Config
+  -> (Session -> Context)
+  -> (Context -> IO (Either SnmpException SnmpResponseT))
+  -> IO (Either SnmpException SnmpResponseT)
+withSession cnf f g = bracket (openSession cnf) closeSession
+  $ \s -> g (f s)
+
 snmpCredentials :: CommunityString -> Credentials
 snmpCredentials com =
   CredentialsConstructV2 (CredentialsV2 { credentialsV2CommunityString = com })
 
-context :: Session -> CommunityString -> Destination -> Context
-context s com d = Context
+context :: CommunityString -> Destination -> Session -> Context
+context com d s = Context
   { contextSession     = s
   , contextDestination = d
   , contextCredentials = snmpCredentials com
@@ -98,7 +96,6 @@ stringifyObjectSyntax :: ObjectSyntax -> Text
 stringifyObjectSyntax (ObjectSyntaxApplication o) =
   stringifyApplicationSyntax o
 stringifyObjectSyntax (ObjectSyntaxSimple o) = stringifySimpleSyntax o
--- stringifyObjectSyntax (ObjectSyntaxSimple o) = Data.Text.pack (show o)
 
 stringifySimpleSyntax :: SimpleSyntax -> Text
 stringifySimpleSyntax (SimpleSyntaxInteger  v) = Data.Text.pack (show v)
@@ -141,4 +138,3 @@ snmpResponseSample = SnmpResponseT $ Data.Vector.fromList [(k, v)]
     v = ObjectSyntaxSimple $ SimpleSyntaxString $ Data.ByteString.Char8.pack "<<HW_REV: V1.0; VENDOR: ..."
 snmpResponse :: SnmpResponseT -> SnmpResponse
 snmpResponse (SnmpResponseT a) = a
-
