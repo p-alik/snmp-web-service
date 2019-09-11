@@ -13,9 +13,10 @@ import qualified Data.ByteString.Lazy.Char8                as B (pack)
 import           Data.Default                              (def)
 
 import           Control.Monad.IO.Class                    (MonadIO, liftIO)
-import           Control.Monad.Trans.Reader                (ReaderT, ask,
+import           Control.Monad.Trans.Reader                (ReaderT, asks,
                                                             runReaderT)
 import           Network.HTTP.Types                        (ok200)
+import           Snmp.Client                               (Config (..))
 import           Network.Wai                               (Middleware,
                                                             Response,
                                                             responseLBS)
@@ -49,8 +50,9 @@ serverSnmpWithDocsAPI = serverSnmp :<|> Tagged serveDocs
 
 snmpGet :: IPv4T -> ObjectIdentifierT -> AppM SnmpResponseT
 snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
-  o <- ask
-  v <- liftIO $ App.Snmp.snmpGet (roCommunity o) oid ip
+  com <- asks roCommunity
+  cnf <-  snmpClientConfig
+  v <- liftIO $ App.Snmp.snmpGet cnf com oid ip
   case v of
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
@@ -66,7 +68,18 @@ runApp o = do
   l <- liftIO jsonRequestLogger
   let set = setPort 8081 defaultSettings
   liftIO (runSettings set $ l $ (app o))
+  where
+    jsonRequestLogger :: IO Middleware
+    jsonRequestLogger =
+      mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON }
 
-jsonRequestLogger :: IO Middleware
-jsonRequestLogger =
-  mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON }
+snmpClientConfig :: AppM Config
+snmpClientConfig = do
+  t <- asks timeout
+  r <- asks retries
+  return $ Config
+    { configSocketPoolSize      = 1
+    , configTimeoutMicroseconds = t * 1000000
+    , configRetries             = r
+    }
+

@@ -25,12 +25,12 @@ import           Language.Asn.Types            (ObjectIdentifier (..))
 import           Net.IPv4                      (IPv4 (..))
 import qualified Net.IPv4                      (encode)
 import           Servant.Docs                  (ToSample (..), singleSample)
-import           Snmp.Client                   (Config (..), Context (..),
+import           Snmp.Client                   (Config, Context (..),
                                                 Credentials (..),
                                                 CredentialsV2 (..),
                                                 Destination (..), Session (..),
                                                 SnmpException, closeSession,
-                                                getBulkStep', openSession)
+                                                get', getBulkStep', openSession)
 import           Snmp.Types                    (ApplicationSyntax (..),
                                                 ObjectSyntax (..),
                                                 SimpleSyntax (..))
@@ -38,14 +38,19 @@ import           Snmp.Types                    (ApplicationSyntax (..),
 type CommunityString = ByteString
 
 snmpGet
-  :: CommunityString
+  :: Config
+  -> CommunityString
   -> ObjectIdentifier
   -> IPv4
   -> IO (Either SnmpException SnmpResponseT)
-snmpGet com oid ip = snmpGetBulk com oid ip 1
+snmpGet cnf com oid ip = bracket (openSession cnf) closeSession
+  $ \s -> do
+  v <- (get' (context s com (destination ip)) oid)
+  return $ either (\l -> Left l) (\r -> Right $ SnmpResponseT $ Data.Vector.fromList [(oid, r)]) v
 
 snmpGetBulk'
-  :: CommunityString
+  :: Config
+  -> CommunityString
   -> ObjectIdentifier
   -> IPv4
   -> Int
@@ -54,17 +59,18 @@ snmpGetBulk'
            SnmpException
            (Vector (ObjectIdentifier, ObjectSyntax))
        )
-snmpGetBulk' com oid ip i = bracket (openSession config) closeSession
+snmpGetBulk' cnf com oid ip i = bracket (openSession cnf) closeSession
   $ \s -> getBulkStep' (context s com (destination ip)) i oid
 
 snmpGetBulk
-  :: CommunityString
+  :: Config
+  -> CommunityString
   -> ObjectIdentifier
   -> IPv4
   -> Int
   -> IO (Either SnmpException SnmpResponseT)
-snmpGetBulk com oid ip i = do
-  v <- snmpGetBulk' com oid ip i
+snmpGetBulk cnf com oid ip i = do
+  v <- snmpGetBulk' cnf com oid ip i
   return (eitherSnmpResponse v)
 
 eitherSnmpResponse
@@ -73,13 +79,6 @@ eitherSnmpResponse
 eitherSnmpResponse v = case v of
   Left  e  -> Left e
   Right v' -> Right (SnmpResponseT v')
-
-config :: Config
-config = Config
-  { configSocketPoolSize      = 1
-  , configTimeoutMicroseconds = 1000000
-  , configRetries             = 1
-  }
 
 snmpCredentials :: CommunityString -> Credentials
 snmpCredentials com =
