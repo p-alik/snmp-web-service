@@ -7,7 +7,8 @@ where
 import           App.Api
 import           App.Settings                              (Options (..))
 import           App.Snmp                                  (SnmpResponseT (..))
-import qualified App.Snmp                                  (snmpGet)
+import qualified App.Snmp                                  (snmpGet,
+                                                            snmpGetBulkStep)
 
 import qualified Data.ByteString.Lazy.Char8                as B (pack)
 import           Data.Default                              (def)
@@ -16,7 +17,6 @@ import           Control.Monad.IO.Class                    (MonadIO, liftIO)
 import           Control.Monad.Trans.Reader                (ReaderT, asks,
                                                             runReaderT)
 import           Network.HTTP.Types                        (ok200)
-import           Snmp.Client                               (Config (..))
 import           Network.Wai                               (Middleware,
                                                             Response,
                                                             responseLBS)
@@ -34,11 +34,12 @@ import           Servant.API
 import           Servant.Server                            (ServantErr (errBody),
                                                             Tagged (..), err404,
                                                             hoistServer)
+import           Snmp.Client                               (Config (..))
 
 type AppM = ReaderT Options Handler
 
 serverSnmp :: ServerT SnmpAPI AppM
-serverSnmp = snmpGet
+serverSnmp = snmpGet :<|> snmpGetBulkStep
 
 serverSnmpWithDocsAPI :: ServerT SnmpWithDocsAPI AppM
 serverSnmpWithDocsAPI = serverSnmp :<|> Tagged serveDocs
@@ -53,6 +54,15 @@ snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig
   v <- liftIO $ App.Snmp.snmpGet cnf com oid ip
+  case v of
+    Left  e -> throwError (err404 {errBody = B.pack $ show e})
+    Right r -> return r
+
+snmpGetBulkStep :: IPv4T -> ObjectIdentifierT -> Step -> AppM SnmpResponseT
+snmpGetBulkStep (IPv4T ip) (ObjectIdentifierT oid) i = do
+  com <- asks roCommunity
+  cnf <-  snmpClientConfig
+  v <- liftIO $ App.Snmp.snmpGetBulkStep cnf com oid ip i
   case v of
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
