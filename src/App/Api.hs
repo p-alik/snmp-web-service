@@ -6,13 +6,13 @@ module App.Api (
   , ObjectIdentifierT(..)
   , SnmpAPI
   , SnmpWithDocsAPI
-  , Step
+  , Step(..)
   , docsApiBS
   , snmpAPI
   , snmpWithDocsAPI
   ) where
 
-import           App.Parser              (parseIPv4, parseOID)
+import           App.Parser              (parseIPv4, parseOID, parseWord)
 import           App.Snmp                (SnmpResponseT (..))
 
 import           Data.ByteString.Lazy    (ByteString)
@@ -26,12 +26,14 @@ import           Servant.API             ((:<|>), (:>), Capture,
                                           FromHttpApiData (..), Get, JSON, Raw)
 import           Servant.Docs
 
-type Step = Int
-
 type SnmpAPI = "get"  :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
           :<|> "getBulkStep" :> Capture "ip" IPv4T :> Capture "oid" ObjectIdentifierT :> Capture "step" Step :> Get '[JSON] SnmpResponseT
 
 type SnmpWithDocsAPI = SnmpAPI :<|> Raw
+
+newtype Step = Step Int
+instance FromHttpApiData Step where
+  parseQueryParam v = either (Left . Data.Text.pack) (Right . Step . fromIntegral) (App.Parser.parseWord v)
 
 newtype ObjectIdentifierT = ObjectIdentifierT ObjectIdentifier
 instance FromHttpApiData ObjectIdentifierT where

@@ -59,7 +59,7 @@ snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
     Right r -> return r
 
 snmpGetBulkStep :: IPv4T -> ObjectIdentifierT -> Step -> AppM SnmpResponseT
-snmpGetBulkStep (IPv4T ip) (ObjectIdentifierT oid) i = do
+snmpGetBulkStep (IPv4T ip) (ObjectIdentifierT oid) (Step i) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig
   v <- liftIO $ App.Snmp.snmpGetBulkStep cnf com oid ip i
