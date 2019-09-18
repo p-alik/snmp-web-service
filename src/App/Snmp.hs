@@ -99,7 +99,7 @@ stringifyObjectSyntax (ObjectSyntaxSimple o) = stringifySimpleSyntax o
 
 stringifySimpleSyntax :: SimpleSyntax -> Text
 stringifySimpleSyntax (SimpleSyntaxInteger  v) = Data.Text.pack (show v)
-stringifySimpleSyntax (SimpleSyntaxObjectId v) = Data.Text.pack (show v)
+stringifySimpleSyntax (SimpleSyntaxObjectId v) = Asn.encodeText v
 stringifySimpleSyntax (SimpleSyntaxString   v) = showSimplySyntaxString v
  where
   showSimplySyntaxString v' = Data.Text.Encoding.decodeUtf8 $ bool
