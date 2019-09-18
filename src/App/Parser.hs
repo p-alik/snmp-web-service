@@ -1,20 +1,18 @@
-module App.Parser where
+module App.Parser (
+    parseIPv4
+  , parseOID
+  , parseWord) where
 
-import           Control.Applicative                      ( (<|>) )
-import           Data.Attoparsec.Text                     ( Parser
-                                                          , char
-                                                          , decimal
-                                                          , endOfInput
-                                                          , parseOnly
-                                                          , sepBy
-                                                          )
+import           Control.Applicative           ((<|>))
+import           Data.Attoparsec.Text          (Parser, char, decimal,
+                                                endOfInput, parseOnly, sepBy)
 
-import           Data.Text                                ( Text )
-import           Language.Asn.ObjectIdentifier            ( fromList )
-import           Language.Asn.Types                       ( ObjectIdentifier )
+import           Data.Text                     (Text)
+import           Language.Asn.ObjectIdentifier (fromList)
+import           Language.Asn.Types            (ObjectIdentifier)
 
-import           Net.IPv4                                 ( IPv4 )
-import qualified Net.IPv4                                 ( parser )
+import           Net.IPv4                      (IPv4)
+import qualified Net.IPv4                      (parser)
 
 
 parserIPv4 :: Parser IPv4
@@ -34,3 +32,6 @@ parseWords = parseOnly $ ((char '.' *> parserOID) <|> parserOID) <* endOfInput
 
 parseOID :: Text -> Either String ObjectIdentifier
 parseOID v = fromList <$> (parseWords v)
+
+parseWord :: Text -> Either String Word
+parseWord = parseOnly $ parserWord <* endOfInput
