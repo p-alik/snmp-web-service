@@ -1,5 +1,5 @@
 module App.Snmp
-  ( SnmpResponseT(..)
+  ( SnmpResponse(..)
   , snmpGet
   , snmpGetBulkChildren
   , snmpGetBulkStep
@@ -43,13 +43,13 @@ snmpGet
   -> CommunityString
   -> ObjectIdentifier
   -> IPv4
-  -> IO (Either SnmpException SnmpResponseT)
+  -> IO (Either SnmpException SnmpResponse)
 snmpGet cnf com oid ip =
   withSession cnf
     (context com (destination ip))
     $ \cnx -> do
     v <- get' cnx oid
-    return $ either (\l -> Left l) (\r -> Right $ SnmpResponseT $ Data.Vector.fromList [(oid, r)]) v
+    return $ either (\l -> Left l) (\r -> Right $ SnmpResponse $ Data.Vector.fromList [(oid, r)]) v
 
 snmpGetBulkStep
   :: Config
@@ -57,7 +57,7 @@ snmpGetBulkStep
   -> ObjectIdentifier
   -> IPv4
   -> Int
-  -> IO (Either SnmpException SnmpResponseT)
+  -> IO (Either SnmpException SnmpResponse)
 snmpGetBulkStep cnf com oid ip i = do
   withSession cnf
     (context com (destination ip))
@@ -69,7 +69,7 @@ snmpGetBulkChildren
   -> ObjectIdentifier
   -> IPv4
   -> Int
-  -> IO (Either SnmpException SnmpResponseT)
+  -> IO (Either SnmpException SnmpResponse)
 snmpGetBulkChildren cnf com oid ip i = do
   withSession cnf
     (context com (destination ip))
@@ -78,21 +78,21 @@ snmpGetBulkChildren cnf com oid ip i = do
 runGetBulk
   :: Monad m =>
   m (Either SnmpException (Vector (ObjectIdentifier,  ObjectSyntax)))
-  -> m (Either SnmpException SnmpResponseT)
+  -> m (Either SnmpException SnmpResponse)
 runGetBulk f = f >>= \v -> return (eitherSnmpResponse v)
 
 eitherSnmpResponse
   :: Either SnmpException (Vector (ObjectIdentifier, ObjectSyntax))
-  -> Either SnmpException SnmpResponseT
+  -> Either SnmpException SnmpResponse
 eitherSnmpResponse v = case v of
   Left  e  -> Left e
-  Right v' -> Right (SnmpResponseT v')
+  Right v' -> Right (SnmpResponse v')
 
 withSession
   :: Config
   -> (Session -> Context)
-  -> (Context -> IO (Either SnmpException SnmpResponseT))
-  -> IO (Either SnmpException SnmpResponseT)
+  -> (Context -> IO (Either SnmpException SnmpResponse))
+  -> IO (Either SnmpException SnmpResponse)
 withSession cnf f g = bracket (openSession cnf) closeSession
   $ \s -> g (f s)
 
@@ -140,19 +140,19 @@ stringifyTuple :: (ObjectIdentifier, ObjectSyntax) -> Value
 stringifyTuple (a, b) =
   object [stringfyObjectIdentifier a .= stringifyObjectSyntax b]
 
-type SnmpResponse = (Vector (ObjectIdentifier,  ObjectSyntax))
+type SnmpResponse' = (Vector (ObjectIdentifier,  ObjectSyntax))
 
-newtype SnmpResponseT = SnmpResponseT SnmpResponse deriving (Show)
-instance ToJSON SnmpResponseT where
-  toJSON a = object [Data.Text.pack "SnmpResponseT" .= vectorToValue (snmpResponse a)]
+newtype SnmpResponse = SnmpResponse SnmpResponse' deriving (Show)
+instance ToJSON SnmpResponse where
+  toJSON a = object [Data.Text.pack "SnmpResponse" .= vectorToValue (snmpResponse a)]
 
-instance ToSample SnmpResponseT where
+instance ToSample SnmpResponse where
   toSamples _ = singleSample (snmpResponseSample)
 
-snmpResponseSample :: SnmpResponseT
-snmpResponseSample = SnmpResponseT $ Data.Vector.fromList [(k, v)]
+snmpResponseSample :: SnmpResponse
+snmpResponseSample = SnmpResponse $ Data.Vector.fromList [(k, v)]
   where
     k = Asn.fromList [1, 3, 6, 1, 2, 1, 1, 1]
     v = ObjectSyntaxSimple $ SimpleSyntaxString $ Data.ByteString.Char8.pack "<<HW_REV: V1.0; VENDOR: ..."
-snmpResponse :: SnmpResponseT -> SnmpResponse
-snmpResponse (SnmpResponseT a) = a
+snmpResponse :: SnmpResponse -> SnmpResponse'
+snmpResponse (SnmpResponse a) = a

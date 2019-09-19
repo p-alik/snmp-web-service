@@ -6,7 +6,7 @@ where
 
 import           App.Api
 import           App.Settings                              (Options (..))
-import           App.Snmp                                  (SnmpResponseT (..))
+import           App.Snmp                                  (SnmpResponse (..))
 import qualified App.Snmp                                  (snmpGet,
                                                             snmpGetBulkStep)
 
@@ -49,7 +49,7 @@ serverSnmpWithDocsAPI = serverSnmp :<|> Tagged serveDocs
       where
       plain = ("Content-Type",  "text/plain")
 
-snmpGet :: IPv4' -> ObjectIdentifier' -> AppM SnmpResponseT
+snmpGet :: IPv4' -> ObjectIdentifier' -> AppM SnmpResponse
 snmpGet (IPv4' ip) (ObjectIdentifier' oid) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig
@@ -58,7 +58,7 @@ snmpGet (IPv4' ip) (ObjectIdentifier' oid) = do
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
 
-snmpGetBulkStep :: IPv4' -> ObjectIdentifier' -> Step -> AppM SnmpResponseT
+snmpGetBulkStep :: IPv4' -> ObjectIdentifier' -> Step -> AppM SnmpResponse
 snmpGetBulkStep (IPv4' ip) (ObjectIdentifier' oid) (Step i) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig

@@ -13,7 +13,7 @@ module App.Api (
   ) where
 
 import           App.Parser              (parseIPv4, parseOID, parseWord)
-import           App.Snmp                (SnmpResponseT (..))
+import           App.Snmp                (SnmpResponse (..))
 
 import           Data.ByteString.Lazy    (ByteString)
 import qualified Data.Text               (pack)
@@ -26,8 +26,8 @@ import           Servant.API             ((:<|>), (:>), Capture,
                                           FromHttpApiData (..), Get, JSON, Raw)
 import           Servant.Docs
 
-type SnmpAPI = "get"  :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Get '[JSON] SnmpResponseT
-          :<|> "getBulkStep" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Capture "step" Step :> Get '[JSON] SnmpResponseT
+type SnmpAPI = "get"  :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Get '[JSON] SnmpResponse
+          :<|> "getBulkStep" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Capture "step" Step :> Get '[JSON] SnmpResponse
 
 type SnmpWithDocsAPI = SnmpAPI :<|> Raw
 
