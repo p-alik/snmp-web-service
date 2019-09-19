@@ -1,8 +1,12 @@
 module App.Snmp
-  ( SnmpResponse(..)
+  ( CommunityString
+  , Language.Asn.Types.ObjectIdentifier
+  , Net.IPv4.IPv4
+  , SnmpResponse(..)
   , snmpGet
   , snmpGetBulkChildren
   , snmpGetBulkStep
+  , SnmpException
   )
 where
 
