@@ -49,8 +49,8 @@ serverSnmpWithDocsAPI = serverSnmp :<|> Tagged serveDocs
       where
       plain = ("Content-Type",  "text/plain")
 
-snmpGet :: IPv4T -> ObjectIdentifierT -> AppM SnmpResponseT
-snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
+snmpGet :: IPv4' -> ObjectIdentifierT -> AppM SnmpResponseT
+snmpGet (IPv4' ip) (ObjectIdentifierT oid) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig
   v <- liftIO $ App.Snmp.snmpGet cnf com oid ip
@@ -58,8 +58,8 @@ snmpGet (IPv4T ip) (ObjectIdentifierT oid) = do
     Left  e -> throwError (err404 {errBody = B.pack $ show e})
     Right r -> return r
 
-snmpGetBulkStep :: IPv4T -> ObjectIdentifierT -> Step -> AppM SnmpResponseT
-snmpGetBulkStep (IPv4T ip) (ObjectIdentifierT oid) (Step i) = do
+snmpGetBulkStep :: IPv4' -> ObjectIdentifierT -> Step -> AppM SnmpResponseT
+snmpGetBulkStep (IPv4' ip) (ObjectIdentifierT oid) (Step i) = do
   com <- asks roCommunity
   cnf <-  snmpClientConfig
   v <- liftIO $ App.Snmp.snmpGetBulkStep cnf com oid ip i
