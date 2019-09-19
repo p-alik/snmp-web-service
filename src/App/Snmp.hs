@@ -1,6 +1,7 @@
 module App.Snmp
   ( SnmpResponseT(..)
   , snmpGet
+  , snmpGetBulkChildren
   , snmpGetBulkStep
   )
 where
@@ -29,7 +30,8 @@ import           Snmp.Client                   (Config, Context (..),
                                                 CredentialsV2 (..),
                                                 Destination (..), Session (..),
                                                 SnmpException, closeSession,
-                                                get', getBulkStep', openSession)
+                                                get', getBulkChildren',
+                                                getBulkStep', openSession)
 import           Snmp.Types                    (ApplicationSyntax (..),
                                                 ObjectSyntax (..),
                                                 SimpleSyntax (..))
@@ -59,9 +61,25 @@ snmpGetBulkStep
 snmpGetBulkStep cnf com oid ip i = do
   withSession cnf
     (context com (destination ip))
-    $ \cnx -> do
-    v <- getBulkStep' cnx i oid
-    return (eitherSnmpResponse v)
+    $ \cnx -> runGetBulk (getBulkStep' cnx i oid)
+
+snmpGetBulkChildren
+  :: Config
+  -> CommunityString
+  -> ObjectIdentifier
+  -> IPv4
+  -> Int
+  -> IO (Either SnmpException SnmpResponseT)
+snmpGetBulkChildren cnf com oid ip i = do
+  withSession cnf
+    (context com (destination ip))
+    $ \cnx -> runGetBulk (getBulkChildren' cnx i oid)
+
+runGetBulk
+  :: Monad m =>
+  m (Either SnmpException (Vector (ObjectIdentifier,  ObjectSyntax)))
+  -> m (Either SnmpException SnmpResponseT)
+runGetBulk f = f >>= \v -> return (eitherSnmpResponse v)
 
 eitherSnmpResponse
   :: Either SnmpException (Vector (ObjectIdentifier, ObjectSyntax))
