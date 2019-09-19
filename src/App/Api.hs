@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeOperators     #-}
 module App.Api (
     IPv4'(..)
-  , ObjectIdentifierT(..)
+  , ObjectIdentifier'(..)
   , SnmpAPI
   , SnmpWithDocsAPI
   , Step(..)
@@ -26,8 +26,8 @@ import           Servant.API             ((:<|>), (:>), Capture,
                                           FromHttpApiData (..), Get, JSON, Raw)
 import           Servant.Docs
 
-type SnmpAPI = "get"  :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifierT :> Get '[JSON] SnmpResponseT
-          :<|> "getBulkStep" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifierT :> Capture "step" Step :> Get '[JSON] SnmpResponseT
+type SnmpAPI = "get"  :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Get '[JSON] SnmpResponseT
+          :<|> "getBulkStep" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Capture "step" Step :> Get '[JSON] SnmpResponseT
 
 type SnmpWithDocsAPI = SnmpAPI :<|> Raw
 
@@ -35,9 +35,9 @@ newtype Step = Step Int
 instance FromHttpApiData Step where
   parseQueryParam v = either (Left . Data.Text.pack) (Right . Step . fromIntegral) (App.Parser.parseWord v)
 
-newtype ObjectIdentifierT = ObjectIdentifierT ObjectIdentifier
-instance FromHttpApiData ObjectIdentifierT where
-  parseQueryParam v = either (Left . Data.Text.pack) (Right . ObjectIdentifierT) (App.Parser.parseOID v)
+newtype ObjectIdentifier' = ObjectIdentifier' ObjectIdentifier
+instance FromHttpApiData ObjectIdentifier' where
+  parseQueryParam v = either (Left . Data.Text.pack) (Right . ObjectIdentifier') (App.Parser.parseOID v)
 
 newtype IPv4' = IPv4' IPv4
 instance FromHttpApiData IPv4' where
@@ -54,7 +54,7 @@ instance ToCapture (Capture "ip" IPv4') where
     DocCapture "ip"
                "(IPv4) the target for SNMP request"
 
-instance ToCapture (Capture "oid" ObjectIdentifierT) where
+instance ToCapture (Capture "oid" ObjectIdentifier') where
   toCapture _ =
     DocCapture "oid"
                "SNMP Object Identifier to be requested"
