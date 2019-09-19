@@ -28,6 +28,7 @@ import           Servant.Docs
 
 type SnmpAPI = "get"  :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Get '[JSON] SnmpResponse
           :<|> "getBulkStep" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Capture "step" Step :> Get '[JSON] SnmpResponse
+          :<|> "getBulkChildren" :> Capture "ip" IPv4' :> Capture "oid" ObjectIdentifier' :> Capture "step" Step :> Get '[JSON] SnmpResponse
 
 type SnmpWithDocsAPI = SnmpAPI :<|> Raw
 
@@ -63,6 +64,7 @@ instance ToCapture (Capture "step" Step) where
   toCapture _ =
     DocCapture "step"
                "number of steps to be proceeded beginning by provided OID"
+
 docsApiBS :: ByteString
 docsApiBS = encodeUtf8
        . Data.Text.Lazy.pack
